@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EXIF Viewer &amp; Metadata Stripper // exif-viewer.slippylabs.com</title>
+<meta name="description" content="See every piece of metadata hidden in a photo — camera, lens, exposure, GPS location, timestamps — then strip it out losslessly. The file never leaves your browser.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://exif-viewer.slippylabs.com/">
+<meta property="og:title" content="EXIF Viewer &amp; Metadata Stripper // exif-viewer.slippylabs.com">
+<meta property="og:description" content="See every piece of metadata hidden in a photo — camera, lens, exposure, GPS location, timestamps — then strip it out losslessly. The file never leaves your browser.">
+<meta property="og:image" content="https://exif-viewer.slippylabs.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="EXIF Viewer &amp; Metadata Stripper // exif-viewer.slippylabs.com">
+<meta name="twitter:description" content="See every piece of metadata hidden in a photo — camera, lens, exposure, GPS location, timestamps — then strip it out losslessly. The file never leaves your browser.">
+<meta name="twitter:image" content="https://exif-viewer.slippylabs.com/og-image.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2234%22%20r%3D%2222%22%20fill%3D%22%231c8a52%22%20stroke%3D%22%2339ff8f%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2216%22%20r%3D%228%22%20fill%3D%22%231c8a52%22%20stroke%3D%22%2339ff8f%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%2244%22%20cy%3D%2216%22%20r%3D%228%22%20fill%3D%22%231c8a52%22%20stroke%3D%22%2339ff8f%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E">
+<meta name="theme-color" content="#050b10">
+<link rel="stylesheet" href="style.css?v=1">
+<script>/* perf-lite: drop blend/blur effects on low-power devices. ?fx=lite or ?fx=full to override (persisted). */
+(function(){try{var k="slippy-fx",m=location.search.match(/[?&]fx=(lite|full)/),v=m?m[1]:localStorage.getItem(k);if(m)localStorage.setItem(k,v);if(v==="lite"||(v!=="full"&&(navigator.hardwareConcurrency||8)<=2))document.documentElement.classList.add("perf-lite");}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="starfield"></div>
+<div class="scanlines"></div>
+
+<main class="page-wrap">
+  <div class="hud-panel wide">
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+
+    <div class="callsign-row">
+      <div class="toad-avatar-wrap">
+        <svg class="toad-avatar" width="46" height="46" viewBox="0 0 64 64">
+          <circle cx="32" cy="34" r="22" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="20" cy="16" r="8" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="44" cy="16" r="8" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="20" cy="16" r="3.5" fill="#050b10"/>
+          <circle cx="44" cy="16" r="3.5" fill="#050b10"/>
+          <ellipse cx="24" cy="32" rx="4.5" ry="5.5" fill="#050b10"/>
+          <ellipse cx="40" cy="32" rx="4.5" ry="5.5" fill="#050b10"/>
+          <circle cx="24" cy="30" r="1.4" fill="#39ff8f"/>
+          <circle cx="40" cy="30" r="1.4" fill="#39ff8f"/>
+          <path d="M22 42 Q32 48 42 42" stroke="#050b10" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </svg>
+        <div class="lock-reticle"></div>
+      </div>
+      <span class="callsign">Workshop Division // Tool</span>
+      <div class="nav-links">
+        <a href="https://projects.slippylabs.com/" class="logout-link">← Archive</a>
+      </div>
+    </div>
+
+    <h1>EXIF VIEWER &amp; STRIPPER</h1>
+    <p class="subtitle">Drop a photo in. Every tag it carries is listed, the GPS coordinates are turned into a place you can look up, and one button hands back the same image with all of it removed.</p>
+
+    <div class="drop-zone" id="drop-zone">
+      <p class="drop-text">Drop a photo here, or pick one:</p>
+      <input type="file" class="tool-file-input" id="file-input"
+             accept="image/jpeg,image/png,image/webp,image/tiff,.jpg,.jpeg,.png,.webp,.tif,.tiff">
+      <p class="tool-note">JPEG, PNG, WebP and TIFF. Nothing is uploaded — the file is read
+        here, in the page.</p>
+    </div>
+
+    <p class="tool-note" id="load-error" role="alert"></p>
+
+    <div id="results" class="hidden">
+      <div class="two-col preview-cols">
+        <div>
+          <div class="cert-section-label">Image</div>
+          <div class="canvas-frame"><img id="preview" alt="The photo you loaded"></div>
+        </div>
+        <div>
+          <div class="cert-section-label">File</div>
+          <div class="net-grid" id="file-facts"></div>
+        </div>
+      </div>
+
+      <div id="privacy-findings"></div>
+
+      <div class="cert-section-label">Strip the metadata</div>
+      <div class="tool-checks">
+        <label class="tool-check">
+          <input type="checkbox" id="keep-icc" checked> Keep the colour profile (ICC)
+        </label>
+        <label class="tool-check">
+          <input type="checkbox" id="keep-orientation"> Keep the orientation tag
+        </label>
+      </div>
+      <div class="tool-controls">
+        <button class="tool-btn" id="strip-btn">Strip &amp; Download</button>
+      </div>
+      <p class="tool-note" id="strip-note"></p>
+
+      <div class="cert-section-label">Every tag in the file</div>
+      <div class="filter-bar" id="ifd-tabs" role="tablist" aria-label="Metadata section"></div>
+      <div class="net-table-wrap"><table class="net-table" id="tag-table"></table></div>
+    </div>
+
+    <p class="tool-note">
+      Stripping rewrites the container and leaves the compressed image data exactly as it was —
+      the pixels are not decoded and re-encoded, so nothing is lost and the file does not get
+      worse. A JPEG keeps its JFIF header and, if you leave the box ticked, its colour profile.
+    </p>
+
+    <div class="comm-window">
+      <div class="comm-portrait">
+        <svg width="36" height="36" viewBox="0 0 64 64">
+          <circle cx="32" cy="34" r="22" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="20" cy="16" r="8" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="44" cy="16" r="8" fill="#1c8a52" stroke="#39ff8f" stroke-width="2"/>
+          <circle cx="20" cy="16" r="3.5" fill="#050b10"/>
+          <circle cx="44" cy="16" r="3.5" fill="#050b10"/>
+          <ellipse cx="24" cy="32" rx="4.5" ry="5.5" fill="#050b10"/>
+          <ellipse cx="40" cy="32" rx="4.5" ry="5.5" fill="#050b10"/>
+          <circle cx="24" cy="30" r="1.4" fill="#39ff8f"/>
+          <circle cx="40" cy="30" r="1.4" fill="#39ff8f"/>
+          <path d="M22 42 Q32 48 42 42" stroke="#050b10" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="comm-body">
+        <div class="comm-label"><span class="dot"></span> Incoming Transmission &mdash; Slippy</div>
+        <p>&quot;A holiday photo carries the camera's serial number and the exact spot you stood. Worth knowing before you post it.&quot;</p>
+      </div>
+    </div>
+
+    <a href="https://projects.slippylabs.com/" class="hud-btn">← Back to Archive</a>
+  </div>
+</main>
+
+<script>
+/* ---- image metadata core ----------------------------------------------------
+   A TIFF/EXIF reader plus a container rewriter for JPEG, PNG and WebP. The
+   rewriter deliberately never touches the compressed image data: stripping is
+   a matter of dropping segments and chunks, so the result is byte-identical
+   where it counts and there is no generation loss. verify_exif.py checks the
+   parse against Pillow, piexif and exifread, and checks the stripped output
+   both for emptiness and for pixel-identity. */
+
+function readUint16(bytes, offset, little) {
+  return little ? bytes[offset] | (bytes[offset + 1] << 8)
+                : (bytes[offset] << 8) | bytes[offset + 1];
+}
+
+function readUint32(bytes, offset, little) {
+  const value = little
+    ? bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) |
+      (bytes[offset + 3] << 24)
+    : (bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) |
+      bytes[offset + 3];
+  return value >>> 0;
+}
+
+function readInt32(bytes, offset, little) {
+  return readUint32(bytes, offset, little) | 0;
+}
+
+const TIFF_TYPE_SIZE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8, 11: 4, 12: 8 };
+
+const TAG_NAMES = {
+  0x0100: 'ImageWidth', 0x0101: 'ImageLength', 0x0102: 'BitsPerSample',
+  0x0103: 'Compression', 0x0106: 'PhotometricInterpretation',
+  0x010E: 'ImageDescription', 0x010F: 'Make', 0x0110: 'Model',
+  0x0111: 'StripOffsets', 0x0112: 'Orientation', 0x0115: 'SamplesPerPixel',
+  0x0116: 'RowsPerStrip', 0x0117: 'StripByteCounts',
+  0x011A: 'XResolution', 0x011B: 'YResolution', 0x011C: 'PlanarConfiguration',
+  0x0128: 'ResolutionUnit', 0x0131: 'Software', 0x0132: 'DateTime',
+  0x013B: 'Artist', 0x013E: 'WhitePoint', 0x013F: 'PrimaryChromaticities',
+  0x0201: 'JPEGInterchangeFormat', 0x0202: 'JPEGInterchangeFormatLength',
+  0x0211: 'YCbCrCoefficients', 0x0213: 'YCbCrPositioning',
+  0x0214: 'ReferenceBlackWhite', 0x8298: 'Copyright',
+  0x829A: 'ExposureTime', 0x829D: 'FNumber', 0x8769: 'ExifOffset',
+  0x8822: 'ExposureProgram', 0x8824: 'SpectralSensitivity',
+  0x8825: 'GPSInfo', 0x8827: 'ISOSpeedRatings', 0x8828: 'OECF',
+  0x8830: 'SensitivityType', 0x8832: 'RecommendedExposureIndex',
+  0x9000: 'ExifVersion', 0x9003: 'DateTimeOriginal', 0x9004: 'DateTimeDigitized',
+  0x9010: 'OffsetTime', 0x9011: 'OffsetTimeOriginal', 0x9012: 'OffsetTimeDigitized',
+  0x9101: 'ComponentsConfiguration', 0x9102: 'CompressedBitsPerPixel',
+  0x9201: 'ShutterSpeedValue', 0x9202: 'ApertureValue', 0x9203: 'BrightnessValue',
+  0x9204: 'ExposureBiasValue', 0x9205: 'MaxApertureValue',
+  0x9206: 'SubjectDistance', 0x9207: 'MeteringMode', 0x9208: 'LightSource',
+  0x9209: 'Flash', 0x920A: 'FocalLength', 0x9214: 'SubjectArea',
+  0x927C: 'MakerNote', 0x9286: 'UserComment',
+  0x9290: 'SubSecTime', 0x9291: 'SubSecTimeOriginal', 0x9292: 'SubSecTimeDigitized',
+  0xA000: 'FlashpixVersion', 0xA001: 'ColorSpace', 0xA002: 'PixelXDimension',
+  0xA003: 'PixelYDimension', 0xA004: 'RelatedSoundFile', 0xA005: 'InteroperabilityOffset',
+  0xA20B: 'FlashEnergy', 0xA20E: 'FocalPlaneXResolution',
+  0xA20F: 'FocalPlaneYResolution', 0xA210: 'FocalPlaneResolutionUnit',
+  0xA214: 'SubjectLocation', 0xA215: 'ExposureIndex', 0xA217: 'SensingMethod',
+  0xA300: 'FileSource', 0xA301: 'SceneType', 0xA302: 'CFAPattern',
+  0xA401: 'CustomRendered', 0xA402: 'ExposureMode', 0xA403: 'WhiteBalance',
+  0xA404: 'DigitalZoomRatio', 0xA405: 'FocalLengthIn35mmFilm',
+  0xA406: 'SceneCaptureType', 0xA407: 'GainControl', 0xA408: 'Contrast',
+  0xA409: 'Saturation', 0xA40A: 'Sharpness', 0xA40C: 'SubjectDistanceRange',
+  0xA420: 'ImageUniqueID', 0xA430: 'CameraOwnerName', 0xA431: 'BodySerialNumber',
+  0xA432: 'LensSpecification', 0xA433: 'LensMake', 0xA434: 'LensModel',
+  0xA435: 'LensSerialNumber', 0xA460: 'CompositeImage',
+};
+
+const GPS_TAG_NAMES = {
+  0x0000: 'GPSVersionID', 0x0001: 'GPSLatitudeRef', 0x0002: 'GPSLatitude',
+  0x0003: 'GPSLongitudeRef', 0x0004: 'GPSLongitude', 0x0005: 'GPSAltitudeRef',
+  0x0006: 'GPSAltitude', 0x0007: 'GPSTimeStamp', 0x0008: 'GPSSatellites',
+  0x0009: 'GPSStatus', 0x000A: 'GPSMeasureMode', 0x000B: 'GPSDOP',
+  0x000C: 'GPSSpeedRef', 0x000D: 'GPSSpeed', 0x000E: 'GPSTrackRef',
+  0x000F: 'GPSTrack', 0x0010: 'GPSImgDirectionRef', 0x0011: 'GPSImgDirection',
+  0x0012: 'GPSMapDatum', 0x0013: 'GPSDestLatitudeRef', 0x0014: 'GPSDestLatitude',
+  0x0015: 'GPSDestLongitudeRef', 0x0016: 'GPSDestLongitude',
+  0x001D: 'GPSDateStamp', 0x001F: 'GPSHPositioningError',
+};
+
+/* Values a camera writes as a number that mean something in words. */
+const ENUMS = {
+  Orientation: {
+    1: 'Normal', 2: 'Mirrored', 3: 'Rotated 180°', 4: 'Mirrored, rotated 180°',
+    5: 'Mirrored, rotated 90° CCW', 6: 'Rotated 90° CW',
+    7: 'Mirrored, rotated 90° CW', 8: 'Rotated 90° CCW',
+  },
+  ResolutionUnit: { 1: 'none', 2: 'inches', 3: 'cm' },
+  ExposureProgram: {
+    0: 'Not defined', 1: 'Manual', 2: 'Program', 3: 'Aperture priority',
+    4: 'Shutter priority', 5: 'Creative', 6: 'Action', 7: 'Portrait', 8: 'Landscape',
+  },
+  MeteringMode: {
+    0: 'Unknown', 1: 'Average', 2: 'Centre-weighted', 3: 'Spot', 4: 'Multi-spot',
+    5: 'Pattern', 6: 'Partial', 255: 'Other',
+  },
+  Flash: {
+    0: 'Did not fire', 1: 'Fired', 5: 'Fired, no return light', 7: 'Fired, return light',
+    9: 'Fired, compulsory', 16: 'Off, compulsory', 24: 'Off, auto', 25: 'Fired, auto',
+    32: 'No flash function',
+  },
+  ColorSpace: { 1: 'sRGB', 2: 'Adobe RGB', 0xFFFF: 'Uncalibrated' },
+  WhiteBalance: { 0: 'Auto', 1: 'Manual' },
+  ExposureMode: { 0: 'Auto', 1: 'Manual', 2: 'Auto bracket' },
+  SceneCaptureType: { 0: 'Standard', 1: 'Landscape', 2: 'Portrait', 3: 'Night' },
+  SensingMethod: {
+    1: 'Not defined', 2: 'One-chip colour area', 3: 'Two-chip colour area',
+    4: 'Three-chip colour area', 5: 'Colour sequential area', 7: 'Trilinear',
+    8: 'Colour sequential linear',
+  },
+  Contrast: { 0: 'Normal', 1: 'Soft', 2: 'Hard' },
+  Saturation: { 0: 'Normal', 1: 'Low', 2: 'High' },
+  Sharpness: { 0: 'Normal', 1: 'Soft', 2: 'Hard' },
+};
+
+/* Reads one IFD and every sub-IFD it points at. Offsets inside a TIFF block are
+   relative to the start of that block, not to the file. */
+function readIFD(bytes, base, offset, little, tagNames, seen) {
+  const entries = [];
+  if (offset + 2 > bytes.length) return { entries, next: 0 };
+  const count = readUint16(bytes, base + offset, little);
+  let pos = base + offset + 2;
+  for (let i = 0; i < count; i++) {
+    if (pos + 12 > bytes.length) break;
+    const tag = readUint16(bytes, pos, little);
+    const type = readUint16(bytes, pos + 2, little);
+    const length = readUint32(bytes, pos + 4, little);
+    const size = (TIFF_TYPE_SIZE[type] || 0) * length;
+    let valueOffset = pos + 8;
+    if (size > 4) valueOffset = base + readUint32(bytes, pos + 8, little);
+    pos += 12;
+    if (!TIFF_TYPE_SIZE[type] || valueOffset + size > bytes.length || size < 0) {
+      entries.push({ tag, type, count: length, name: tagNames[tag] || 'Tag 0x' +
+                     tag.toString(16).toUpperCase(), value: null, raw: '(unreadable)' });
+      continue;
+    }
+    entries.push({
+      tag, type, count: length,
+      name: tagNames[tag] || 'Tag 0x' + tag.toString(16).toUpperCase().padStart(4, '0'),
+      value: readTagValue(bytes, valueOffset, type, length, little),
+      offset: valueOffset,
+      size,
+    });
+  }
+  const nextOffset = pos + 4 <= bytes.length ? readUint32(bytes, pos, little) : 0;
+  return { entries, next: nextOffset };
+}
+
+function readTagValue(bytes, offset, type, count, little) {
+  if (type === 2) {                                   // ASCII, NUL-terminated
+    let out = '';
+    for (let i = 0; i < count; i++) {
+      const byte = bytes[offset + i];
+      if (byte === 0) break;
+      out += String.fromCharCode(byte);
+    }
+    return out;
+  }
+  if (type === 7 || type === 1 || type === 6) {       // UNDEFINED / BYTE / SBYTE
+    const raw = Array.from(bytes.subarray(offset, offset + count));
+    return raw;
+  }
+  const values = [];
+  for (let i = 0; i < count; i++) {
+    const at = offset + i * TIFF_TYPE_SIZE[type];
+    switch (type) {
+      case 3: values.push(readUint16(bytes, at, little)); break;
+      case 8: {
+        const v = readUint16(bytes, at, little);
+        values.push(v > 0x7FFF ? v - 0x10000 : v);
+        break;
+      }
+      case 4: values.push(readUint32(bytes, at, little)); break;
+      case 9: values.push(readInt32(bytes, at, little)); break;
+      case 5: values.push([readUint32(bytes, at, little), readUint32(bytes, at + 4, little)]); break;
+      case 10: values.push([readInt32(bytes, at, little), readInt32(bytes, at + 4, little)]); break;
+      case 11: values.push(new DataView(bytes.buffer, bytes.byteOffset + at, 4)
+                           .getFloat32(0, little)); break;
+      case 12: values.push(new DataView(bytes.buffer, bytes.byteOffset + at, 8)
+                           .getFloat64(0, little)); break;
+      default: values.push(null);
+    }
+  }
+  return values.length === 1 ? values[0] : values;
+}
+
+/* Parses a TIFF block — the payload of a JPEG APP1, a PNG eXIf chunk, a WebP
+   EXIF chunk, or a whole .tif file. */
+function parseTIFF(bytes, base) {
+  if (base + 8 > bytes.length) throw new Error('not enough data for a TIFF header');
+  const order = String.fromCharCode(bytes[base], bytes[base + 1]);
+  if (order !== 'II' && order !== 'MM') throw new Error('unknown byte order "' + order + '"');
+  const little = order === 'II';
+  const magic = readUint16(bytes, base + 2, little);
+  if (magic !== 42) throw new Error('bad TIFF magic number ' + magic);
+  const firstIFD = readUint32(bytes, base + 4, little);
+
+  const sections = [];
+  const ifd0 = readIFD(bytes, base, firstIFD, little, TAG_NAMES);
+  sections.push({ name: 'IFD0 (image)', entries: ifd0.entries });
+
+  const exifPointer = ifd0.entries.find((e) => e.tag === 0x8769);
+  if (exifPointer && typeof exifPointer.value === 'number') {
+    sections.push({
+      name: 'Exif',
+      entries: readIFD(bytes, base, exifPointer.value, little, TAG_NAMES).entries,
+    });
+  }
+  const gpsPointer = ifd0.entries.find((e) => e.tag === 0x8825);
+  if (gpsPointer && typeof gpsPointer.value === 'number') {
+    sections.push({
+      name: 'GPS',
+      entries: readIFD(bytes, base, gpsPointer.value, little, GPS_TAG_NAMES).entries,
+    });
+  }
+  const exifSection = sections.find((s) => s.name === 'Exif');
+  if (exifSection) {
+    const interop = exifSection.entries.find((e) => e.tag === 0xA005);
+    if (interop && typeof interop.value === 'number') {
+      sections.push({
+        name: 'Interoperability',
+        entries: readIFD(bytes, base, interop.value, little, TAG_NAMES).entries,
+      });
+    }
+  }
+  if (ifd0.next) {
+    const ifd1 = readIFD(bytes, base, ifd0.next, little, TAG_NAMES);
+    if (ifd1.entries.length) {
+      sections.push({ name: 'IFD1 (thumbnail)', entries: ifd1.entries });
+    }
+  }
+  return { little, sections };
+}
+
+/* --- container walking ---------------------------------------------------- */
+
+const JPEG_APP_NAMES = {
+  0xE0: 'JFIF header', 0xE1: 'Exif / XMP', 0xE2: 'ICC colour profile',
+  0xE3: 'Kodak / Meta', 0xE4: 'FlashPix', 0xE5: 'Ricoh', 0xE6: 'GoPro',
+  0xE7: 'Pentax', 0xE8: 'Spiff', 0xEC: 'Picture info', 0xED: 'Photoshop / IPTC',
+  0xEE: 'Adobe', 0xEF: 'Application', 0xFE: 'Comment',
+};
+
+function parseJPEG(bytes) {
+  if (bytes[0] !== 0xFF || bytes[1] !== 0xD8) throw new Error('not a JPEG');
+  const segments = [];
+  let pos = 2;
+  while (pos < bytes.length - 1) {
+    if (bytes[pos] !== 0xFF) { pos++; continue; }
+    const marker = bytes[pos + 1];
+    if (marker === 0xD8 || marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)) {
+      pos += 2;
+      continue;
+    }
+    if (marker === 0xD9) break;
+    if (marker === 0xDA) {                           // start of scan: pixels follow
+      segments.push({ marker, start: pos, end: bytes.length, name: 'Image data' });
+      break;
+    }
+    const length = readUint16(bytes, pos + 2, false);
+    segments.push({
+      marker,
+      start: pos,
+      end: pos + 2 + length,
+      dataStart: pos + 4,
+      dataEnd: pos + 2 + length,
+      name: JPEG_APP_NAMES[marker] || 'Marker 0x' + marker.toString(16).toUpperCase(),
+    });
+    pos += 2 + length;
+  }
+  return segments;
+}
+
+const EXIF_PREFIX = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00];    // "Exif\0\0"
+
+function startsWithBytes(bytes, offset, prefix) {
+  for (let i = 0; i < prefix.length; i++) if (bytes[offset + i] !== prefix[i]) return false;
+  return true;
+}
+
+function textAt(bytes, start, length) {
+  return new TextDecoder('latin1').decode(bytes.subarray(start, start + length));
+}
+
+/* --- PNG ------------------------------------------------------------------ */
+
+const PNG_SIGNATURE = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+function parsePNGChunks(bytes) {
+  const chunks = [];
+  let pos = 8;
+  while (pos + 8 <= bytes.length) {
+    const length = readUint32(bytes, pos, false);
+    const type = textAt(bytes, pos + 4, 4);
+    chunks.push({ type, start: pos, dataStart: pos + 8, length, end: pos + 12 + length });
+    if (type === 'IEND') break;
+    pos += 12 + length;
+  }
+  return chunks;
+}
+
+/* --- WebP ----------------------------------------------------------------- */
+
+function parseWebPChunks(bytes) {
+  const chunks = [];
+  let pos = 12;                                       // past "RIFF" size "WEBP"
+  while (pos + 8 <= bytes.length) {
+    const type = textAt(bytes, pos, 4);
+    const length = readUint32(bytes, pos + 4, true);
+    const padded = length + (length % 2);
+    chunks.push({ type, start: pos, dataStart: pos + 8, length, end: pos + 8 + padded });
+    pos += 8 + padded;
+  }
+  return chunks;
+}
+
+/* --- one entry point for every format ------------------------------------- */
+
+const METADATA_PNG_CHUNKS = ['eXIf', 'tEXt', 'zTXt', 'iTXt', 'tIME'];
+
+function detectFormat(bytes) {
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8) return 'jpeg';
+  if (startsWithBytes(bytes, 0, PNG_SIGNATURE)) return 'png';
+  if (textAt(bytes, 0, 4) === 'RIFF' && textAt(bytes, 8, 4) === 'WEBP') return 'webp';
+  if ((bytes[0] === 0x49 && bytes[1] === 0x49) || (bytes[0] === 0x4D && bytes[1] === 0x4D)) {
+    return 'tiff';
+  }
+  return null;
+}
+
+function readMetadata(bytes) {
+  const format = detectFormat(bytes);
+  if (!format) throw new Error('Not an image this tool can read. Expected JPEG, PNG, WebP or TIFF.');
+
+  const result = { format, sections: [], extras: [], containers: [] };
+
+  if (format === 'jpeg') {
+    const segments = parseJPEG(bytes);
+    result.containers = segments.map((s) => ({
+      name: s.name, marker: s.marker, bytes: s.end - s.start,
+    }));
+    for (const segment of segments) {
+      if (segment.marker === 0xE1 && startsWithBytes(bytes, segment.dataStart, EXIF_PREFIX)) {
+        const tiff = parseTIFF(bytes, segment.dataStart + 6);
+        result.sections.push(...tiff.sections);
+      } else if (segment.marker === 0xE1) {
+        const text = textAt(bytes, segment.dataStart, segment.dataEnd - segment.dataStart);
+        if (text.indexOf('http://ns.adobe.com/xap/') === 0) {
+          result.extras.push({ name: 'XMP', text: text.slice(text.indexOf('<')) });
+        }
+      } else if (segment.marker === 0xED) {
+        result.extras.push({
+          name: 'Photoshop / IPTC',
+          text: '(' + (segment.dataEnd - segment.dataStart) + ' bytes of Photoshop resources)',
+        });
+      } else if (segment.marker === 0xFE) {
+        result.extras.push({
+          name: 'JPEG comment',
+          text: textAt(bytes, segment.dataStart, segment.dataEnd - segment.dataStart),
+        });
+      } else if (segment.marker === 0xE2) {
+        result.extras.push({
+          name: 'ICC colour profile',
+          text: '(' + (segment.dataEnd - segment.dataStart) + ' bytes)',
+        });
+      }
+    }
+  } else if (format === 'png') {
+    const chunks = parsePNGChunks(bytes);
+    result.containers = chunks.map((c) => ({ name: c.type, bytes: c.end - c.start }));
+    for (const chunk of chunks) {
+      if (chunk.type === 'eXIf') {
+        result.sections.push(...parseTIFF(bytes, chunk.dataStart).sections);
+      } else if (chunk.type === 'tEXt' || chunk.type === 'iTXt' || chunk.type === 'zTXt') {
+        const raw = textAt(bytes, chunk.dataStart, chunk.length);
+        const nul = raw.indexOf(' ');
+        result.extras.push({
+          name: 'PNG text: ' + (nul === -1 ? chunk.type : raw.slice(0, nul)),
+          text: chunk.type === 'zTXt' ? '(compressed)' : raw.slice(nul + 1).replace(/ /g, ' '),
+        });
+      } else if (chunk.type === 'tIME') {
+        result.extras.push({ name: 'PNG timestamp', text: '(last modification time)' });
+      }
+    }
+  } else if (format === 'webp') {
+    const chunks = parseWebPChunks(bytes);
+    result.containers = chunks.map((c) => ({ name: c.type, bytes: c.end - c.start }));
+    for (const chunk of chunks) {
+      if (chunk.type === 'EXIF') {
+        // Some writers put the "Exif\0\0" prefix in here too, some do not.
+        const base = startsWithBytes(bytes, chunk.dataStart, EXIF_PREFIX)
+          ? chunk.dataStart + 6 : chunk.dataStart;
+        result.sections.push(...parseTIFF(bytes, base).sections);
+      } else if (chunk.type === 'XMP ') {
+        result.extras.push({
+          name: 'XMP',
+          text: textAt(bytes, chunk.dataStart, chunk.length),
+        });
+      }
+    }
+  } else {
+    result.sections.push(...parseTIFF(bytes, 0).sections);
+  }
+  return result;
+}
+
+/* --- stripping ------------------------------------------------------------ */
+
+function concatBytes(parts) {
+  let total = 0;
+  for (const part of parts) total += part.length;
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const part of parts) { out.set(part, pos); pos += part.length; }
+  return out;
+}
+
+/* Builds a minimal APP1 holding only the orientation tag, for the case where
+   dropping it would leave a rotated photo displayed sideways. */
+function buildOrientationAPP1(orientation) {
+  const tiff = new Uint8Array(26);
+  tiff.set([0x4D, 0x4D, 0x00, 0x2A, 0x00, 0x00, 0x00, 0x08], 0);   // MM, 42, IFD at 8
+  tiff.set([0x00, 0x01], 8);                                        // one entry
+  tiff.set([0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01], 10);   // Orientation, SHORT, 1
+  tiff.set([(orientation >> 8) & 0xFF, orientation & 0xFF, 0x00, 0x00], 18);
+  tiff.set([0x00, 0x00, 0x00, 0x00], 22);                           // no next IFD
+  const payload = concatBytes([new Uint8Array(EXIF_PREFIX), tiff]);
+  const length = payload.length + 2;
+  return concatBytes([
+    new Uint8Array([0xFF, 0xE1, (length >> 8) & 0xFF, length & 0xFF]),
+    payload,
+  ]);
+}
+
+/* The image data is copied across untouched — this is a container rewrite, not
+   a re-encode, so there is no generation loss. */
+function stripMetadata(bytes, options) {
+  const format = detectFormat(bytes);
+  const keepICC = options && options.keepICC;
+  const keepOrientation = options && options.keepOrientation;
+
+  if (format === 'jpeg') {
+    const segments = parseJPEG(bytes);
+    const parts = [new Uint8Array([0xFF, 0xD8])];
+    let orientation = null;
+    if (keepOrientation) {
+      try {
+        const meta = readMetadata(bytes);
+        for (const section of meta.sections) {
+          const found = section.entries.find((e) => e.tag === 0x0112);
+          if (found && typeof found.value === 'number') { orientation = found.value; break; }
+        }
+      } catch (err) { /* no readable Exif, so there is no orientation to keep */ }
+    }
+    if (orientation !== null && orientation !== 1) parts.push(buildOrientationAPP1(orientation));
+
+    for (const segment of segments) {
+      const marker = segment.marker;
+      const isMetadata = (marker >= 0xE1 && marker <= 0xEF) || marker === 0xFE;
+      if (marker === 0xE2 && keepICC) {
+        parts.push(bytes.subarray(segment.start, segment.end));
+        continue;
+      }
+      if (isMetadata) continue;                       // APP1..APP15 and COM go
+      parts.push(bytes.subarray(segment.start, segment.end));
+    }
+    return concatBytes(parts);
+  }
+
+  if (format === 'png') {
+    const chunks = parsePNGChunks(bytes);
+    const parts = [bytes.subarray(0, 8)];
+    for (const chunk of chunks) {
+      if (METADATA_PNG_CHUNKS.indexOf(chunk.type) !== -1) continue;
+      if (chunk.type === 'iCCP' && !keepICC) continue;
+      parts.push(bytes.subarray(chunk.start, chunk.end));
+    }
+    return concatBytes(parts);
+  }
+
+  if (format === 'webp') {
+    const chunks = parseWebPChunks(bytes);
+    const kept = [];
+    for (const chunk of chunks) {
+      if (chunk.type === 'EXIF' || chunk.type === 'XMP ') continue;
+      if (chunk.type === 'ICCP' && !keepICC) continue;
+      kept.push(chunk);
+    }
+    const body = concatBytes(kept.map((c) => bytes.subarray(c.start, c.end)));
+    // VP8X carries flags saying which optional chunks exist; they have to be
+    // cleared or a reader will go looking for chunks that are no longer there.
+    if (kept.length && kept[0].type === 'VP8X') {
+      const flagsIndex = kept[0].dataStart - kept[0].start;
+      body[flagsIndex] &= ~0x0C;                      // clear the EXIF and XMP bits
+      if (!keepICC) body[flagsIndex] &= ~0x20;        // and the ICC bit
+    }
+    const size = body.length + 4;
+    const header = new Uint8Array(12);
+    header.set([0x52, 0x49, 0x46, 0x46], 0);          // "RIFF"
+    header.set([size & 0xFF, (size >> 8) & 0xFF, (size >> 16) & 0xFF, (size >> 24) & 0xFF], 4);
+    header.set([0x57, 0x45, 0x42, 0x50], 8);          // "WEBP"
+    return concatBytes([header, body]);
+  }
+
+  throw new Error('Stripping is only supported for JPEG, PNG and WebP.');
+}
+
+/* --- interpretation ------------------------------------------------------- */
+
+function ratioToNumber(value) {
+  if (Array.isArray(value) && value.length === 2 && typeof value[0] === 'number') {
+    return value[1] === 0 ? 0 : value[0] / value[1];
+  }
+  return null;
+}
+
+/* GPS coordinates are three rationals — degrees, minutes, seconds. */
+function gpsToDecimal(parts, ref) {
+  if (!Array.isArray(parts) || parts.length < 3) return null;
+  const [d, m, s] = parts.map(ratioToNumber);
+  if (d === null || m === null || s === null) return null;
+  const decimal = d + m / 60 + s / 3600;
+  return (ref === 'S' || ref === 'W') ? -decimal : decimal;
+}
+
+function findTag(sections, name) {
+  for (const section of sections) {
+    const entry = section.entries.find((e) => e.name === name);
+    if (entry) return entry;
+  }
+  return null;
+}
+
+function summarise(meta) {
+  const s = meta.sections;
+  const get = (name) => {
+    const entry = findTag(s, name);
+    return entry ? entry.value : null;
+  };
+
+  const summary = {};
+  const make = get('Make');
+  const model = get('Model');
+  if (make || model) {
+    summary.camera = [make, model].filter(Boolean)
+      .map((t) => String(t).trim()).join(' ').replace(/(\S+) \1/, '$1');
+  }
+  const lens = get('LensModel');
+  if (lens) summary.lens = String(lens).trim();
+  const software = get('Software');
+  if (software) summary.software = String(software).trim();
+
+  const exposure = ratioToNumber(get('ExposureTime'));
+  if (exposure !== null) {
+    summary.exposure = exposure >= 1 ? exposure + ' s' : '1/' + Math.round(1 / exposure) + ' s';
+  }
+  const fnumber = ratioToNumber(get('FNumber'));
+  if (fnumber !== null) summary.aperture = 'f/' + (Math.round(fnumber * 10) / 10);
+  const iso = get('ISOSpeedRatings');
+  if (iso !== null) summary.iso = 'ISO ' + (Array.isArray(iso) ? iso[0] : iso);
+  const focal = ratioToNumber(get('FocalLength'));
+  if (focal !== null) summary.focalLength = Math.round(focal) + ' mm';
+
+  const taken = get('DateTimeOriginal') || get('DateTime');
+  if (taken) summary.taken = String(taken).trim();
+  const serial = get('BodySerialNumber');
+  if (serial) summary.serial = String(serial).trim();
+  const owner = get('CameraOwnerName') || get('Artist');
+  if (owner) summary.owner = String(owner).trim();
+
+  const latitude = gpsToDecimal(get('GPSLatitude'), get('GPSLatitudeRef'));
+  const longitude = gpsToDecimal(get('GPSLongitude'), get('GPSLongitudeRef'));
+  if (latitude !== null && longitude !== null) {
+    summary.latitude = latitude;
+    summary.longitude = longitude;
+    summary.coordinates = latitude.toFixed(6) + ', ' + longitude.toFixed(6);
+  }
+  const orientation = get('Orientation');
+  if (orientation !== null) {
+    summary.orientation = ENUMS.Orientation[orientation] || String(orientation);
+  }
+  return summary;
+}
+
+/* What a person would actually want warning about before posting the photo. */
+function privacyFindings(meta) {
+  const summary = summarise(meta);
+  const findings = [];
+  if (summary.coordinates) {
+    findings.push({
+      level: 'bad',
+      title: 'This photo says exactly where it was taken',
+      detail: summary.coordinates + '. Anyone with the file can put that on a map.',
+      link: 'https://www.openstreetmap.org/?mlat=' + summary.latitude +
+            '&mlon=' + summary.longitude + '#map=16/' + summary.latitude + '/' +
+            summary.longitude,
+    });
+  }
+  if (summary.serial) {
+    findings.push({
+      level: 'bad',
+      title: 'The camera body serial number is in the file',
+      detail: summary.serial + ' — the same number appears in every other photo from ' +
+              'that camera, which links them all together.',
+    });
+  }
+  if (summary.owner) {
+    findings.push({
+      level: 'bad',
+      title: 'An owner or artist name is in the file',
+      detail: summary.owner,
+    });
+  }
+  if (summary.taken) {
+    findings.push({
+      level: 'warn',
+      title: 'Timestamp',
+      detail: 'Taken ' + summary.taken + (findTag(meta.sections, 'OffsetTimeOriginal')
+        ? ' (with a time zone, which narrows down where you were)' : ''),
+    });
+  }
+  if (summary.camera) {
+    findings.push({
+      level: 'warn',
+      title: 'Camera and settings',
+      detail: [summary.camera, summary.lens, summary.exposure, summary.aperture,
+               summary.iso, summary.focalLength].filter(Boolean).join(' · '),
+    });
+  }
+  for (const extra of meta.extras) {
+    if (extra.name === 'XMP' || extra.name.indexOf('Photoshop') === 0) {
+      findings.push({
+        level: 'warn',
+        title: extra.name + ' block present',
+        detail: 'Editing software writes history, keywords and sometimes the author here.',
+      });
+    }
+  }
+  const tagCount = meta.sections.reduce((total, s) => total + s.entries.length, 0);
+  if (!findings.length) {
+    findings.push({
+      level: 'good',
+      title: tagCount ? 'Nothing sensitive found' : 'This file carries no metadata at all',
+      detail: tagCount
+        ? tagCount + ' tags, but no location, no serial number and no name.'
+        : 'No EXIF, no XMP, no comments. Nothing to strip.',
+    });
+  }
+  return findings;
+}
+
+function formatValue(entry) {
+  const value = entry.value;
+  if (value === null) return '(unreadable)';
+  if (ENUMS[entry.name] && ENUMS[entry.name][value] !== undefined) {
+    return ENUMS[entry.name][value] + ' (' + value + ')';
+  }
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) {
+    if (value.length === 2 && typeof value[0] === 'number' && entry.type === 5) {
+      const num = ratioToNumber(value);
+      return value[0] + '/' + value[1] + (num === null ? '' : '  = ' + (Math.round(num * 1000) / 1000));
+    }
+    if (entry.type === 7 || entry.type === 1) {
+      const text = value.map((b) => String.fromCharCode(b)).join('');
+      if (/^[\x20-\x7E]+$/.test(text.replace(/\0+$/, ''))) return text.replace(/\0+$/, '');
+      return value.length > 24
+        ? '(' + value.length + ' bytes)'
+        : value.map((b) => b.toString(16).padStart(2, '0')).join(' ');
+    }
+    if (value.length > 12) return '(' + value.length + ' values)';
+    return value.map((v) => Array.isArray(v) ? v[0] + '/' + v[1] : String(v)).join(', ');
+  }
+  return String(value);
+}
+
+/* ==== UI ==== */
+
+const $ = (id) => document.getElementById(id);
+let currentBytes = null;
+let currentName = 'image';
+let currentMeta = null;
+let previewURL = null;
+
+function show(el, text) { el.textContent = text; el.style.display = text ? 'block' : 'none'; }
+
+function tile(label, value) {
+  const box = document.createElement('div');
+  box.className = 'net-tile';
+  const l = document.createElement('div');
+  l.className = 'net-tile-label';
+  l.textContent = label;
+  const v = document.createElement('div');
+  v.className = 'net-tile-value mono';
+  v.textContent = value;
+  box.append(l, v);
+  return box;
+}
+
+function humanSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+function renderFileFacts() {
+  const box = $('file-facts');
+  box.textContent = '';
+  box.append(tile('File', currentName));
+  box.append(tile('Format', currentMeta.format.toUpperCase()));
+  box.append(tile('Size', humanSize(currentBytes.length)));
+  const tagCount = currentMeta.sections.reduce((total, s) => total + s.entries.length, 0);
+  box.append(tile('Metadata tags', String(tagCount)));
+  const summary = summarise(currentMeta);
+  if (summary.camera) box.append(tile('Camera', summary.camera));
+  if (summary.taken) box.append(tile('Taken', summary.taken));
+  if (summary.coordinates) box.append(tile('Location', summary.coordinates));
+  if (summary.orientation) box.append(tile('Orientation', summary.orientation));
+}
+
+function renderFindings() {
+  const box = $('privacy-findings');
+  box.textContent = '';
+  for (const finding of privacyFindings(currentMeta)) {
+    const card = document.createElement('div');
+    card.className = 'finding ' + finding.level;
+    const title = document.createElement('div');
+    title.className = 'finding-title';
+    title.textContent = finding.title;
+    card.append(title);
+    const detail = document.createElement('p');
+    detail.className = 'finding-detail';
+    detail.textContent = finding.detail;
+    card.append(detail);
+    if (finding.link) {
+      const link = document.createElement('a');
+      link.className = 'hud-btn';
+      link.href = finding.link;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'Show on a map';
+      card.append(link);
+    }
+    box.append(card);
+  }
+}
+
+let activeSection = 0;
+
+function renderTags() {
+  const tabs = $('ifd-tabs');
+  tabs.textContent = '';
+  const groups = currentMeta.sections.slice();
+  if (currentMeta.extras.length) {
+    groups.push({
+      name: 'Other blocks',
+      entries: currentMeta.extras.map((extra, i) => ({
+        tag: i, type: 2, name: extra.name, value: extra.text,
+      })),
+    });
+  }
+  if (!groups.length) {
+    $('tag-table').textContent = '';
+    return;
+  }
+  if (activeSection >= groups.length) activeSection = 0;
+
+  groups.forEach((group, index) => {
+    const button = document.createElement('button');
+    button.className = 'hud-tab' + (index === activeSection ? ' active' : '');
+    button.textContent = group.name + ' (' + group.entries.length + ')';
+    button.addEventListener('click', () => { activeSection = index; renderTags(); });
+    tabs.append(button);
+  });
+
+  const table = $('tag-table');
+  table.textContent = '';
+  const head = table.insertRow();
+  ['Tag', 'Name', 'Value'].forEach((label) => {
+    const th = document.createElement('th');
+    th.textContent = label;
+    head.append(th);
+  });
+  for (const entry of groups[activeSection].entries) {
+    const row = table.insertRow();
+    row.insertCell().textContent = typeof entry.tag === 'number' && entry.type !== undefined
+      ? '0x' + entry.tag.toString(16).toUpperCase().padStart(4, '0') : '';
+    row.insertCell().textContent = entry.name;
+    const cell = row.insertCell();
+    cell.textContent = formatValue(entry);
+    cell.className = 'wrap';
+  }
+}
+
+async function loadFile(file) {
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    currentMeta = readMetadata(bytes);
+    currentBytes = bytes;
+    currentName = file.name || 'image';
+    show($('load-error'), '');
+    $('results').classList.remove('hidden');
+
+    if (previewURL) URL.revokeObjectURL(previewURL);
+    previewURL = URL.createObjectURL(new Blob([bytes], { type: file.type || 'image/jpeg' }));
+    $('preview').src = previewURL;
+
+    activeSection = 0;
+    renderFileFacts();
+    renderFindings();
+    renderTags();
+    show($('strip-note'), '');
+  } catch (err) {
+    show($('load-error'), err.message);
+    $('results').classList.add('hidden');
+  }
+}
+
+$('file-input').addEventListener('change', (event) => {
+  if (event.target.files[0]) loadFile(event.target.files[0]);
+});
+
+const zone = $('drop-zone');
+['dragenter', 'dragover'].forEach((name) => {
+  zone.addEventListener(name, (event) => {
+    event.preventDefault();
+    zone.classList.add('over');
+  });
+});
+['dragleave', 'drop'].forEach((name) => {
+  zone.addEventListener(name, (event) => {
+    event.preventDefault();
+    zone.classList.remove('over');
+  });
+});
+zone.addEventListener('drop', (event) => {
+  const file = event.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+
+$('strip-btn').addEventListener('click', () => {
+  if (!currentBytes) return;
+  try {
+    const stripped = stripMetadata(currentBytes, {
+      keepICC: $('keep-icc').checked,
+      keepOrientation: $('keep-orientation').checked,
+    });
+    const saved = currentBytes.length - stripped.length;
+    show($('strip-note'),
+         humanSize(saved) + ' of metadata removed — ' + humanSize(currentBytes.length) +
+         ' became ' + humanSize(stripped.length) + '. The image data itself was copied ' +
+         'across untouched, so the picture is bit-for-bit what it was.');
+    const blob = new Blob([stripped], { type: 'image/' + currentMeta.format });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const dot = currentName.lastIndexOf('.');
+    link.download = (dot === -1 ? currentName : currentName.slice(0, dot)) + '-stripped' +
+                    (dot === -1 ? '' : currentName.slice(dot));
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+  } catch (err) {
+    show($('strip-note'), err.message);
+  }
+});
+</script>
+</body>
+</html>
