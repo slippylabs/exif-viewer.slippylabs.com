@@ -509,10 +509,10 @@ function readMetadata(bytes) {
         result.sections.push(...parseTIFF(bytes, chunk.dataStart).sections);
       } else if (chunk.type === 'tEXt' || chunk.type === 'iTXt' || chunk.type === 'zTXt') {
         const raw = textAt(bytes, chunk.dataStart, chunk.length);
-        const nul = raw.indexOf(' ');
+        const nul = raw.indexOf('\u0000');
         result.extras.push({
           name: 'PNG text: ' + (nul === -1 ? chunk.type : raw.slice(0, nul)),
-          text: chunk.type === 'zTXt' ? '(compressed)' : raw.slice(nul + 1).replace(/ /g, ' '),
+          text: chunk.type === 'zTXt' ? '(compressed)' : raw.slice(nul + 1).replace(/\u0000/g, ' '),
         });
       } else if (chunk.type === 'tIME') {
         result.extras.push({ name: 'PNG timestamp', text: '(last modification time)' });
